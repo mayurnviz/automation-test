@@ -47,11 +47,23 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git push origin "${{ inputs.branch_name }}"
 
+      - name: Generate PR description
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          DIFF=$(git diff main..HEAD)
+          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$GEMINI_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"contents\":[{\"parts\":[{\"text\":\"Write a concise PR description (2-4 sentences) summarizing this code change:\n\n$DIFF\"}]}]}")
+          echo "PR_BODY<<EOF" >> $GITHUB_ENV
+          echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['candidates'][0]['content']['parts'][0]['text'])" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Open PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create --title "AI: ${{ inputs.task_description }}" \
-                        --body "Automated change via Aider, triggered from ClickUp." \
+                        --body "${{ env.PR_BODY }}"  \
                         --base main \
                         --head "${{ inputs.branch_name }}"
