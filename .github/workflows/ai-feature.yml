@@ -51,12 +51,21 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          DIFF=$(git diff main..HEAD)
-          RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$GEMINI_API_KEY" \
+          git diff main..HEAD > diff.txt
+          python3 -c "
+          import json
+          diff = open('diff.txt').read()
+          payload = {'contents':[{'parts':[{'text': 'Write a concise PR description (2-4 sentences) summarizing this code change:\n\n' + diff}]}]}
+          print(json.dumps(payload))
+          " > payload.json
+          curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$(python3 -c "import json,sys; print(json.dumps({'contents':[{'parts':[{'text': 'Write a concise PR description (2-4 sentences) summarizing this code change:\n\n' + open('diff.txt').read()}]}]}))" )")
-          echo "$DIFF" > diff.txt
-          echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['candidates'][0]['content']['parts'][0]['text'])" > pr_body.txt
+            -d @payload.json > response.json
+          python3 -c "
+          import json
+          data = json.load(open('response.json'))
+          print(data['candidates'][0]['content']['parts'][0]['text'])
+          " > pr_body.txt
 
       - name: Open PR
         env:
