@@ -1,0 +1,57 @@
+name: AI Feature
+
+on:
+  workflow_dispatch:
+    inputs:
+      task_description:
+        description: 'Task for Aider to perform'
+        required: true
+        type: string
+      branch_name:
+        description: 'Branch name to create'
+        required: true
+        type: string
+
+jobs:
+  aider-task:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Aider
+        run: |
+          pip install aider-install
+          aider-install
+
+      - name: Create branch
+        run: git checkout -b "${{ inputs.branch_name }}"
+
+      - name: Run Aider
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          aider --model gemini/gemini-3.6-flash --yes-always --message "${{ inputs.task_description }}"
+
+      - name: Push branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git push origin "${{ inputs.branch_name }}"
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create --title "AI: ${{ inputs.task_description }}" \
+                        --body "Automated change via Aider, triggered from ClickUp." \
+                        --base main \
+                        --head "${{ inputs.branch_name }}"
