@@ -3,6 +3,10 @@ name: AI Feature
 on:
   workflow_dispatch:
     inputs:
+      task_name:
+        description: 'ClickUp ticket title'
+        required: true
+        type: string
       task_description:
         description: 'Task for Aider to perform'
         required: true
@@ -71,7 +75,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr create --title "AI: ${{ inputs.task_description }}" \
+          gh pr create --title "AI: ${{ inputs.task_name }}" \
                         --body-file pr_body.txt \
                         --base main \
                         --head "${{ inputs.branch_name }}"
