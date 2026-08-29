@@ -54,16 +54,15 @@ jobs:
           DIFF=$(git diff main..HEAD)
           RESPONSE=$(curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "{\"contents\":[{\"parts\":[{\"text\":\"Write a concise PR description (2-4 sentences) summarizing this code change:\n\n$DIFF\"}]}]}")
-          echo "PR_BODY<<EOF" >> $GITHUB_ENV
-          echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['candidates'][0]['content']['parts'][0]['text'])" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+            -d "$(python3 -c "import json,sys; print(json.dumps({'contents':[{'parts':[{'text': 'Write a concise PR description (2-4 sentences) summarizing this code change:\n\n' + open('diff.txt').read()}]}]}))" )")
+          echo "$DIFF" > diff.txt
+          echo "$RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin)['candidates'][0]['content']['parts'][0]['text'])" > pr_body.txt
 
       - name: Open PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh pr create --title "AI: ${{ inputs.task_description }}" \
-                        --body "${{ env.PR_BODY }}"  \
+                        --body-file pr_body.txt \
                         --base main \
                         --head "${{ inputs.branch_name }}"
