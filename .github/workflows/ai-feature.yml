@@ -59,16 +59,20 @@ jobs:
           python3 -c "
           import json
           diff = open('diff.txt').read()
-          payload = {'contents':[{'parts':[{'text': 'Write a concise PR description (2-4 sentences) summarizing this code change:\n\n' + diff}]}]}
+          payload = {'contents':[{'parts':[{'text': 'Write a concise PR description (1-2 sentences) summarizing this code change:\n\n' + diff}]}]}
           print(json.dumps(payload))
           " > payload.json
           curl -s -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=$GEMINI_API_KEY" \
             -H "Content-Type: application/json" \
             -d @payload.json > response.json
+          cat response.json
           python3 -c "
           import json
           data = json.load(open('response.json'))
-          print(data['candidates'][0]['content']['parts'][0]['text'])
+          if 'candidates' in data:
+              print(data['candidates'][0]['content']['parts'][0]['text'])
+          else:
+              print('Gemini API error - see logs above')
           " > pr_body.txt
 
       - name: Open PR
